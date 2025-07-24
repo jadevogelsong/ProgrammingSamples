@@ -1,0 +1,225 @@
+---
+title: "R Independent Project"
+author: "Jade Vogelsong"
+date: "2025-07-07"
+output: html_document
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Submission instructions:
+
++ Upload a .Rmd file, and the corresponding HTML file to Moodle, as well as a text file with the
+link to your private Github repository. 
+
+## Project description:
+
+You have received the “Get to know survey 2025.csv” file, and you need to do some data manipulation in order to show a summary of the results collected in the file.
+After loading the data into R, you notice a few inconsistencies in the data before you can summarize it.
+
+The following objectives will help you to solve some of those inconsistencies:
+
+
+### Question 1.
+
+Create a new column called Birth_Month which has only the month portion of Birth_Month_Year:
+
+### Question 2. 
+
+Create a new column called Birth_Year which has only the year portion of Birth_Month_Year (10 points).
+
+[Question 1 and 2 are solved in the same line of code below:]
+
+```{r message=FALSE, warning=FALSE}
+#Load libraries we need
+library(dplyr)
+library(stringr)
+library(knitr)
+library(tidyverse)
+library(lubridate)
+library(countrycode)
+#Read data in
+df <- read.csv("Get to know survey 2025.csv")
+colnames(df) <- c("Birth_Month_Year", "State", "Country", "Languages", "When_Hear_About_Program", "How_Hear_About_Program", "Favorite Hobbies")
+
+df <- df |>
+  rowwise() |>
+  mutate(Birth_Month=str_split(Birth_Month_Year,",")[[1]][1]) |> #Question 1
+  mutate(Birth_Year=str_split(Birth_Month_Year,",")[[1]][-1])    #Question 2
+
+#example where month is numeric
+print(paste("Month and Year:", df[[1]][52]))
+print(paste("Month:", df[[8]][52])) 
+```
+
+### Question 3. 
+
+Since the birth month and birth year were open ended fields, there are many inconsistencies in the data. Standardize the values for Birth_Month and Birth_Year (10 points).
+```{r}
+df$Birth_Month_Year <- replace(df$Birth_Month_Year, 54, "October, 2002")
+
+df <- df |>
+  mutate(
+    Parsed_Date = parse_date_time(Birth_Month_Year, orders = c("m/Y", "m-Y", "m/y", "m-y", "b Y", "B Y", "b y", "B y")),
+    Birth_Month = month(Parsed_Date, label = TRUE, abbr = FALSE) # Full month name
+  )
+
+df <- df |>
+  mutate(
+    Birth_Year = year(Parsed_Date)
+  )
+
+df$Birth_Month <- str_to_title(df$Birth_Month)  #make all title
+
+#example where month is numeric, notice that month is now May and not '5'
+print(paste("Month:", df[[8]][52])) 
+```
+
+### Question 4. 
+
+Show the five most frequent birth months, and the five least frequent birth months (10 points).
+```{r}
+mostFreqMonth <- df |>
+  select(Birth_Month) |>
+  count(Birth_Month, sort=TRUE) |>
+  head(5)
+mostFreqMonth
+
+leastFreqMonth <- df |>
+  select(Birth_Month) |>
+  count(Birth_Month, sort=TRUE) |>
+  tail(5)
+leastFreqMonth
+```
+
+### Question 5. 
+
+Show the five most frequent birth years, and the five least frequent birth year (10 points).
+```{r}
+mostFreqYear <- df |>
+  select(Birth_Year) |>
+  count(Birth_Year, sort=TRUE) |>
+  head(5)
+mostFreqYear
+
+leastFreqYear <- df |>
+  select(Birth_Year) |>
+  count(Birth_Year, sort=TRUE) |>
+  tail(5)
+leastFreqYear
+```  
+
+### Question 6. 
+
+The State column was also open ended, so there are many inconsistencies. Clean this column to eliminate any non-US state, and to standardize the values for State (10 points).
+```{r}
+standardize_state <- function(state_input) {
+  state_input <- str_to_lower(str_trim(state_input)) # Clean and lowercase input
+  # Try to match full names
+  match_name <- match(state_input, str_to_lower(state.name))
+  if (!is.na(match_name)) {
+    return(state.name[match_name])
+  }
+
+  # Try to match abbreviations
+  match_abb <- match(state_input, str_to_lower(state.abb))
+  if (!is.na(match_abb)) {
+    return(state.name[match_abb]) # Return full name for consistency
+  }
+  
+  return(NA_character_) # Return NA if no match (non-US or unrecognised)
+}
+
+df <- df %>%
+  mutate(
+    State = map_chr(State, standardize_state) # Apply the function row-wise
+  )
+```
+
+### Question 7. 
+
+Show the five most frequent states, and the five least frequent state (10 points).
+```{r}
+mostFreqState <- df |>
+  filter(!is.na(State)) |>
+  count(State, sort=TRUE) |>
+  head(5)
+mostFreqState
+
+leastFreqState <- df |>
+  filter(!is.na(State)) |>
+  count(State, sort=TRUE) |>
+  tail(5)
+leastFreqState
+```
+
+### Question 8.
+
+Similar to State, the column Country needs to be standardized. Once you standardize it, show the five most frequent countries, and the five least frequent countries (10 points).
+```{r}
+# "Ghana and Malawi" is the only country that wouldn't be matched, therefore, using nomatch= argument as "Ghana and Malawi"
+df <- df |>
+  mutate(
+    Country = countrycode(Country, origin='country.name.en.regex', destination='country.name',
+                          nomatch="Ghana and Malawi")
+  )
+
+mostFreqCountry <- df |>
+  filter(!is.na(Country)) |>
+  count(Country, sort=TRUE) |>
+  head(5)
+mostFreqCountry
+
+leastFreqCountry <- df |>
+  filter(!is.na(Country)) |>
+  count(Country, sort=TRUE) |>
+  tail(5)
+leastFreqCountry
+```
+
+### Question 9. 
+
+We want to clean the How_Hear_About_Program column by eliminating the number and any extra character portion in those responses (so we keep only the text portion). Show the five most frequent responses to this column (10 points).
+```{r}
+# Only keep text portion
+df <- df |>
+  mutate(
+    How_Hear_About_Program = ifelse(str_detect(How_Hear_About_Program, "1. "), 
+                                    "Recommended by professors", How_Hear_About_Program)) |>
+  mutate(
+    How_Hear_About_Program = ifelse(str_detect(How_Hear_About_Program, "2. "), 
+                                    "Recommended by family/friends", How_Hear_About_Program)) |>
+  mutate(
+    How_Hear_About_Program = ifelse(str_detect(How_Hear_About_Program, "3. "), 
+                                    "On social media (Twitter, Instagram, FB)",
+                                    How_Hear_About_Program)) |>
+  mutate(
+    How_Hear_About_Program = ifelse(str_detect(How_Hear_About_Program, "4. "), 
+                                    "Search engine", How_Hear_About_Program)) 
+
+#five most frequent responses
+df |>
+  count(How_Hear_About_Program, sort=TRUE) |>
+  head(5)
+```
+
+### Question 10. 
+
+We want to transform the data from wide to long on column Languages by duplicating the values of the other columns. You can use the comma as a separator for Languages. Show the five most frequent languages (10 points).
+```{r}
+#wide to long transformation
+long_df <- df |>
+  select(-Parsed_Date) |>
+  separate_rows(Languages, sep = ",\\s*") |>
+  mutate(Languages = str_trim(Languages)) |>
+  filter(!is.na(Languages) & Languages != "")
+
+long_df |>
+  count(Languages, sort=TRUE) |>
+  head(5)
+```
+
+
+
