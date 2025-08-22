@@ -1,0 +1,243 @@
+---
+title: 'ST431 Split Plot Design: Honors Credit'
+author: "Jade Vogelsong"
+date: "2025-04-18"
+output: 
+  pdf_document: 
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F,
+warning = F,
+message = F)
+```
+# Lawson Problems 
+## 8.3 Seafood Company: Nested Split Plot
+Kuehl (2000) reports the results of an experiment conducted at a large seafood company to investigate the effect of storage temperature and type of seafood upon bacterial growth on oysters and mussels. Three storage temperatures were studied (0 C, 5 C, and 10 C). Three cold storage units were randomly assigned to be operated at each temperature. Within each storage unit, oysters and mussels were randomly assigned to be stored on one of the two shelves. The seafood was stored for two weeks at the assigned temperature, and at the end of the time the bacterial count was obtained from a sample on each shelf. The resulting data (log bacterial count) is shown below.
+```{r}
+knitr::include_graphics("C:\\Users\\19106\\Pictures\\Screenshots\\ST431SplitPlot8.3.png")
+```
+
++ (a) What is the experimental unit for temperature? 
+
+**Storage** unit is the experimental unit for temperature.
+
++ (b) Why was it necessary to include 9 storage units instead of 3? 
+
+There are three temperature levels and we need replication because only one storage unit per temperature would mean any difference in bacterial growth could be due to the unit itself, not the temperature. By selecting 3 storage units PER temperature, we are able to separate the temperature effect from the variation among units.
+
++ (c) What is the experimental unit for seafood type?
+
+**Shelf** is the experimental unit for seafood type. Within each storage unit, oysters and mussels are assigned to separate shelves.
+
++ (d) Write the model for the data.
+
+Split-plot design: 
+
++ whole-plot factor: temperature (applied to storage units)
+
++ sub-plot factor: seafood type (applied within each unit to separate shelves)
+
+\center $y_{ijk} = \mu + T_i + S_k + (TS)_{ik} + U_{j(i)} + \epsilon_{ijk}$
+
+\flushleft
+$y_{ijk}$: log bacterial count for seafood type $k$, in storage unit $j$ at temperature level $i$
+
+$\mu$: overall log bacterial count mean
+
+$T_i$: fixed effect of temperature $i$ applied at the wholeplot level 
+
+$S_j$: fixed effect of seafood type $k$ applied at the subplot level
+
+$(TS)_{ij}$: interaction effect between temperature (Wholeplot) and seafood (subplot)
+
+$U_{j(i)}$: **random** effect of storage unit $j$ nested within temperature $i$
+
+$\epsilon_{ijk}$: **random** error at wholeplot level
+
+```{r}
+library(lmerTest)
+seafoodData <- data.frame(
+  storage_unit = rep(1:9, each = 2),
+  temperature = rep(c(0, 0, 0, 5, 5, 5, 10, 10, 10), each = 2),
+  seafood = rep(c("Oysters", "Mussels"), times = 9),
+  log_bacteria = c(
+    3.6882, 0.3565,
+    1.8275, 1.7023,
+    5.2327, 4.5780,
+    7.1950, 5.0169,
+    9.3224, 7.9519,
+    7.4195, 6.3861,
+    9.7842, 10.1352,
+    6.4703, 5.0482,
+    9.4442, 11.0329
+  )
+)
+seafoodData$temperature <- factor(seafoodData$temperature)
+seafoodData$seafood <- factor(seafoodData$seafood)
+
+bacteriaModel <- lmer(log_bacteria ~ temperature * seafood + (1 | storage_unit), data = seafoodData)
+summary(bacteriaModel, correlation=F)
+```
+
+The coefficients for the model are displayed in the output above.
+
++ (e) Analyze the data to determine what temperature and type of seafood have significant effects.
+```{r}
+library(emmeans)
+anova(bacteriaModel)
+
+# Marginal means for model
+emmeans(bacteriaModel, ~ temperature + seafood)
+```
+
+The interaction and seafood term are not significant based on the ANOVA output. However, since the question is asking what temp AND seafood have significant effects we consider both main effects in our emmeans output. Temperature 10 and mussels result in the highest emmean of 8.74.
+
++ (f) Interpret any significant effects.
+```{r}
+emmeans(bacteriaModel, ~ temperature)
+emmeans(bacteriaModel, ~ seafood)
+```
+
+As the main effect temperature increases from 0, 5, 10, the emmean increases as well. Indicating a higher temperature results in a higher log bacterial count. For the seafood main effect, oysters have a higher emmean than mussels, indicating oysters generally result in a higher log baterial count.
+
+
++ (g) Check the assumptions of the model you used for analysis.
+```{r}
+plot(bacteriaModel)  # default plot for lmer gives residuals vs fitted
+
+qqnorm(resid(bacteriaModel)) #QQ plot
+qqline(resid(bacteriaModel))
+```
+
+The fitted vs residual plot is generally equally dispersed above and below the horizontal line. **Linearity and homoscedasticity** (constant variance) assumptions of the model **are met**. The QQ plot tests for normality of the errors. In the QQ plot there is slightly heavy tails in the model, however since this is a smaller sample size slightly heavy tails aren't problematic, especially when the homoscedasticity and linearity assumptions are met. Since the rest of the points generally follow the line, the **normality assumptions of errors are met**.
+
+## 8.5 Film Performance
+Ramirez and Tobias (2007) present the data shown below from an experiment to compare performance, based on a quality characteristic, of a new and old ﬁlm type and three manufacturing pressures. One ﬁlm type was selected at random and it was run through the manufacturing process randomly assigning each pressure to 1/3-rd of the roll. Quality measurements were made on each third of the roll. Next, the other ﬁlm type was run through the process again randomly assigning each pressure to 1/3-rd of the roll. This two-step experimental process was repeated eight different times.
+```{r}
+knitr::include_graphics("C:\\Users\\19106\\Pictures\\Screenshots\\ST431SplitPlot8.5.png")
+```
+
++ (a) Was this a completely randomized or randomized block design in the whole plots? 
+
+This is a ***randomized block design at the whole-plot level**. Each time block (1 to 8) is a block. Within each time block, both Old and New film types are run. Meaning, film type is randomly assigned within each block. Making it a randomized complete block design for the whole plot factor.
+
+
++ (b) What is the model for the data?
+
+Split-plot design: 
+
++ whole-plot factor: temperature (applied to storage units)
+
++ sub-plot factor: seafood type (applied within each unit to separate shelves)
+
+\center Mixed Effects Model: $y_{ijk} = \mu + F_i + P_j + (FP)_{ij} + B_k + (FB)_{ik} + \epsilon_{ijk}$
+
+\flushleft
+$y_{ijk}$ = quality measurement for film type $i$, pressure $j$, block $k$
+
+$\mu$ = overall baseline mean
+
+$F_i$ = fixed effect of film type
+
+$P_j$ = fixed effect of pressure
+
+$(FP)_{ij}$ = interaction of film type and pressure
+
+$B_k$ = **random** effect of block (time)
+
+$FB_{ik}$ = **random** whole-plot error (block x film)
+
+$\epsilon_{ijk}$ = **random** residual error at the subplot level
+
+```{r}
+library(lme4)
+library(lmerTest)
+
+# Create the dataset manually
+block <- rep(1:8, each = 6)
+film <- rep(c("Old", "New"), each = 3, times = 8)
+pressure <- rep(c("P1", "P2", "P3"), times = 2 * 8)
+response <- c(
+  15.39, 15.49, 15.39, 15.40, 15.62, 15.14,
+  15.97, 15.79, 14.99, 15.25, 15.37, 15.55,
+  15.88, 15.91, 15.48, 15.92, 15.26, 15.43,
+  15.36, 15.51, 15.47, 15.30, 15.53, 15.66,
+  15.86, 15.19, 14.93, 15.42, 15.03, 15.26,
+  15.53, 15.61, 15.49, 15.32, 15.55, 15.50,
+  15.91, 16.06, 15.53, 15.75, 15.54, 15.68,
+  16.03, 15.55, 15.49, 15.75, 15.31, 15.62
+)
+filmData <- data.frame(
+  block = factor(block),
+  film = factor(film),
+  pressure = factor(pressure),
+  response = response
+)
+# Fit model with film and pressure as fixed effects, block and block:film as random
+filmModel <- lmer(response ~ film * pressure + (1 | block) + (1 | block:film), data = filmData)
+
+
+summary(filmModel, correlation=F)
+```
+
+The coefficients for the model are displayed in the output above.
+
++ (c) Analyze the data to determine if type or pressure have any effect on the quality characteristic measured.
+```{r}
+library(lme4)
+library(lmerTest)
+
+# ANOVA to test fixed effects
+anova(filmModel)
+```
+
+Based on the ANOVA output of the model above, film type is not significant but pressure and film:pressure are significant.
+
++ (d) Describe any signiﬁcant differences you ﬁnd and interpret what these differences mean by referring to tables or graphs of means or multiple comparison tests. 
+```{r}
+library(emmeans)
+
+# Get marginal means
+emm_film <- emmeans(filmModel, ~ film)
+emm_pressure <- emmeans(filmModel, ~ pressure)
+emm_interaction <- emmeans(filmModel, ~ film * pressure)
+
+# Pairwise comparisons
+pairs(emm_film)
+pairs(emm_pressure)
+pairs(emm_interaction)
+
+# Plot means
+plot(emm_interaction)
+```
+
+While all combinations fall in a fairly narrow range (15.3–15.7), there is some evidence that:
+
++ P1 (especially New P1) may give slightly better film quality.
+
++ P3 (especially Old P3) may yield lower quality.
+
+No strong interaction appears. The order of best to worst is similar for both films.
+
+The differences are small but potentially meaningful for optimization.
+
+Based on the estimated marginal means, film pressure level P1, particularly with the New film type, results in slightly higher average film quality than other combinations. The differences across film-pressure combinations are not large, and most confidence intervals overlap, indicating no strong interaction between film and pressure. However, Old P3 appears to perform slightly worse, suggesting that this combination may be less optimal.
+
++ (e) Check the assumptions of equal variance and normality of the whole-plot and split-plot error terms as described in Section 5.9.
+```{r}
+# Residuals vs fitted values (equal variance)
+plot(filmModel)
+
+# QQ plot (normality)
+qqnorm(resid(filmModel))
+qqline(resid(filmModel))
+```
+
+The fitted vs residual plot points are equally dispersed above and below the horizontal line. **Linearity and homoscedasticity** (constant variance) assumptions of the model **are met**. In the QQ plot there are slightly heavy tails in the model, however since this is a smaller sample size these tails aren't problematic, especially when the homoscedasticity and linearity assumptions are met. Since the rest of the points generally follow the line, the **normality assumptions of errors are met**.
+
+\newpage
+## Code Appendix:
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```
